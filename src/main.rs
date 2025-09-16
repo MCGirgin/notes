@@ -12,6 +12,7 @@ struct Note {
     body: String,
     modified: u64,
     editing: bool,
+    backup: Option<String>,
 }
 
 impl Note {
@@ -22,6 +23,7 @@ impl Note {
             body: String::new(),
             modified: current_unix(),
             editing: false,
+            backup: None,
         }
     }
 }
@@ -117,13 +119,13 @@ impl eframe::App for NotesApp {
             )
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label("Notes");
+                    ui.label("NOTES ");
                     if ui.button("New").clicked() {
                         self.add_note();
                     }
-                    if ui.button("Save").clicked() {
+                    /*if ui.button("Save").clicked() {
                         self.save_notes();
-                    }
+                    }*/
                     if ui.button("Delete").clicked() {
                         self.delete_selected();
                     }
@@ -136,7 +138,7 @@ impl eframe::App for NotesApp {
                 .inner_margin(egui::Margin { top: 10.0, bottom: 10.0, left: 10.0, right: 10.0 })
                 .stroke(egui::Stroke::new(0.0, egui::Color32::TRANSPARENT))
             )
-            .min_width(200.0).show(ctx, |ui| {
+            .min_width(150.0).show(ctx, |ui| {
                 ui.vertical(|ui| {
                     ui.horizontal(|ui| {
                         ui.label("Search:");
@@ -177,76 +179,96 @@ impl eframe::App for NotesApp {
                 });
             });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            if let Some(idx) = self.selected {
-                if idx < self.notes.len() {
-                    let note = &mut self.notes[idx];
+        egui::CentralPanel::default()
+            .frame(egui::Frame::default()
+                .fill(ctx.style().visuals.panel_fill)
+                .inner_margin(egui::Margin { top: 10.0, bottom: 10.0, left: 10.0, right: 15.0 })
+                .stroke(egui::Stroke::new(0.0, egui::Color32::TRANSPARENT))
+            )
+            .show(ctx, |ui| {
+                if let Some(idx) = self.selected {
+                    if idx < self.notes.len() {
+                        let note = &mut self.notes[idx];
 
-                    if note.editing {
-                        ui.horizontal(|ui| {
-                            ui.label("Title:");
-                            if ui.text_edit_singleline(&mut note.title).changed() {
+                        if note.editing {
+                            ui.horizontal(|ui| {
+                                ui.label("Title:");
+                                if ui.text_edit_singleline(&mut note.title).changed() {
+                                    note.modified = current_unix();
+                                    self.dirty = true;
+                                }
+                            });
+                        } else {
+                            ui.horizontal(|ui| {
+                                ui.label("");
+                                ui.label(egui::RichText::new(&note.title).heading());
+                            });
+                        }
+
+                        ui.separator();
+
+                        if note.editing {
+                            ui.label("Body:");
+                            let available_height = ui.available_height();
+                            if ui
+                                .add(egui::TextEdit::multiline(&mut note.body).desired_rows(0).min_size(egui::vec2(0.0, available_height * 0.7)).desired_width(450.0))
+                                .changed()
+                            {
                                 note.modified = current_unix();
                                 self.dirty = true;
                             }
-                        });
-                    } else {
-                        ui.horizontal(|ui| {
-                            ui.label("");
-                            ui.label(egui::RichText::new(&note.title).heading());
-                        });
-                    }
-
-                    ui.separator();
-
-                    if note.editing {
-                        ui.label("Body:");
-                        if ui
-                            .add(egui::TextEdit::multiline(&mut note.body).desired_rows(20))
-                            .changed()
-                        {
-                            note.modified = current_unix();
-                            self.dirty = true;
+                        } else {
+                            ui.label(&note.body);
                         }
-                    } else {
-                        ui.label(&note.body);
-                    }
 
-                    ui.separator();
+                        ui.separator();
 
-                    let mut save_clicked = false;
-                    let last_modified = note.modified;
-                    
-                    let dt: DateTime<Local> = Local.timestamp_opt(last_modified as i64, 0).unwrap();
-                    ui.label(
-                        egui::RichText::new(format!("Last modified: {}", dt.format("  %d-%m-%Y   %H:%M")))
-                            .size(10.0)
-                    );
-                    ui.horizontal(|ui| {
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if note.editing {
-                                if ui.button("Save note").clicked() {
-                                    note.modified = current_unix();
-                                    note.editing = false;
-                                    save_clicked = true;
+                        let mut save_clicked = false;
+                        let last_modified = note.modified;
+                        
+                        let dt: DateTime<Local> = Local.timestamp_opt(last_modified as i64, 0).unwrap();
+                        ui.label(
+                            egui::RichText::new(format!("Last modified: {}", dt.format("  %d-%m-%Y   %H:%M")))
+                                .size(10.0)
+                        );
+                        ui.horizontal(|ui| {
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if note.editing {
+                                    if ui.button("Save").clicked() {
+                                        note.modified = current_unix();
+                                        note.editing = false;
+                                        save_clicked = true;
+                                        note.backup = None;
+                                    }
+                                    if ui.button("Close").clicked() {
+                                        if let Some(original) = &note.backup {
+                                            note.body = original.clone();
+                                        }
+                                        note.editing = false;
+                                        note.backup = None;
+                                    }
+                                } else {
+                                    if ui.button("Edit").clicked() {
+                                        note.backup = Some(note.body.clone());
+                                        note.editing = true;
+                                    }
+                                    if ui.button("Copy").clicked() {
+                                        ui.ctx().output_mut(|o| o.copied_text = note.body.clone());
+                                    }
+                                    
                                 }
-                            } else {
-                                if ui.button("Edit").clicked() {
-                                    note.editing = true;
-                                }
-                            }
+                            });
                         });
-                    });
 
-                    if save_clicked {
-                        self.dirty = true;
-                        self.save_notes();
+                        if save_clicked {
+                            self.dirty = true;
+                            self.save_notes();
+                        }
                     }
+                } else {
+                    ui.label("No note selected — create one with New");
                 }
-            } else {
-                ui.label("No note selected — create one with New");
-            }
-        });
+            });
 
         if self.dirty {
             self.save_notes();
