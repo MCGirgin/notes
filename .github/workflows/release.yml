@@ -163,7 +163,7 @@ jobs:
         body: |
           ## Notes ${{ steps.tag_info.outputs.tag }}
           
-          A simple and elegant notes application built with Rust and egui.
+          A simple and elegant notes application built with Rust.
           
           ### What's New
           ${{ steps.changelog.outputs.changelog }}
