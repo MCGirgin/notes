@@ -153,17 +153,21 @@ jobs:
     
     - name: Download all artifacts
       uses: actions/download-artifact@v4
+
+    - name: Get release date
+      id: release_date
+      run: echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
     
     - name: Create GitHub Release
       id: create_release
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ steps.tag_info.outputs.tag }}
-        name: Notes ${{ steps.tag_info.outputs.tag }}
+        name: ${{ steps.tag_info.outputs.tag }}
         body: |
           ## Notes ${{ steps.tag_info.outputs.tag }}
-          
-          A simple and elegant notes application built with Rust.
+
+          Released on ${{ steps.release_date.outputs.date }}
           
           ### What's New
           ${{ steps.changelog.outputs.changelog }}
