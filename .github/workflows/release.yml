@@ -186,7 +186,7 @@ jobs:
 
           ---
           
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.tag_info.outputs.tag }}...HEAD
+          [**Full Changelog**](https://github.com/MCGirgin/notes/blob/main/CHANGELOG.md)
         draft: false
         prerelease: ${{ steps.prerelease.outputs.prerelease }}
         files: |
