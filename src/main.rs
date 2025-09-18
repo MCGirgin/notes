@@ -194,7 +194,6 @@ impl NotesApp {
         ui.add_space(10.0);
 
         egui::ScrollArea::vertical().show(ui, |ui| {
-            // Theme settings
             ui.group(|ui| {
                 ui.label(egui::RichText::new("Appearance").size(18.0));
                 ui.add_space(5.0);
@@ -226,7 +225,6 @@ impl NotesApp {
 
             ui.add_space(10.0);
 
-            // Editor settings
             ui.group(|ui| {
                 ui.label(egui::RichText::new("Editor").size(18.0));
                 ui.add_space(5.0);

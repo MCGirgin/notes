@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0
+
+Released on 2025-09-19
+
+### What's new
+
+- New settings page created and linked to `settings.json` ([ad44f13](https://github.com/MCGirgin/notes/commit/ad44f13c61c7b93440674ba81aab8eee03d7df41))
+- Moved theme switch to settings page ([ad44f13](https://github.com/MCGirgin/notes/commit/ad44f13c61c7b93440674ba81aab8eee03d7df41))
+- New setting for font size, auto-save and word count ([ad44f13](https://github.com/MCGirgin/notes/commit/ad44f13c61c7b93440674ba81aab8eee03d7df41))
+- Added scrolling functionality for notes list and text editor ([ee156b8](https://github.com/MCGirgin/notes/commit/ee156b88df3a9045b5b515526f25d1096e8f1fa0))
+
+### Enhancements
+
+- Note list and text editor made responsive ([ee156b8](https://github.com/MCGirgin/notes/commit/ee156b88df3a9045b5b515526f25d1096e8f1fa0))
+
 ## 0.2.0
 
 Released on 2025-09-18
