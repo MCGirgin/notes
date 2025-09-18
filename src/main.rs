@@ -30,6 +30,17 @@ impl Note {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+struct AppSettings {
+    dark_mode: bool,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self { dark_mode: true }
+    }
+}
+
 fn current_unix() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -45,11 +56,21 @@ fn get_data_path() -> String {
     path.to_string_lossy().to_string()
 }
 
+fn get_settings_path() -> String {
+    let mut path = dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+    path.push("notes");
+    let _ = std::fs::create_dir_all(&path);
+    path.push("settings.json");
+    path.to_string_lossy().to_string()
+}
+
 struct NotesApp {
     notes: Vec<Note>,
     selected: Option<usize>,
     search: String,
     data_path: String,
+    settings_path: String,
+    settings: AppSettings,
     dirty: bool,
     dragging: Option<usize>,
     drag_start_pos: Option<egui::Pos2>,
@@ -58,13 +79,17 @@ struct NotesApp {
 impl Default for NotesApp {
     fn default() -> Self {
         let data_path = get_data_path();
+        let settings_path = get_settings_path();
         let notes = load_notes(&data_path).unwrap_or_default();
+        let settings = load_settings(&settings_path).unwrap_or_default();
         let selected = if notes.is_empty() { None } else { Some(0) };
         Self {
             notes,
             selected,
             search: String::new(),
             data_path,
+            settings_path,
+            settings,
             dirty: false,
             dragging: None,
             drag_start_pos: None,
@@ -100,6 +125,26 @@ impl NotesApp {
         }
     }
 
+    fn save_settings(&self) {
+        if let Err(e) = save_settings(&self.settings_path, &self.settings) {
+            eprintln!("Failed to save settings: {}", e);
+        }
+    }
+
+    fn toggle_theme(&mut self, ctx: &egui::Context) {
+        self.settings.dark_mode = !self.settings.dark_mode;
+        self.apply_theme(ctx);
+        self.save_settings();
+    }
+
+    fn apply_theme(&self, ctx: &egui::Context) {
+        if self.settings.dark_mode {
+            ctx.set_visuals(egui::Visuals::dark());
+        } else {
+            ctx.set_visuals(egui::Visuals::light());
+        }
+    }
+
     fn move_note(&mut self, from: usize, to: usize) {
         if from != to && from < self.notes.len() && to < self.notes.len() {
             let note = self.notes.remove(from);
@@ -122,8 +167,15 @@ impl NotesApp {
 
 impl eframe::App for NotesApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        static mut THEME_APPLIED: bool = false;
         static mut FONT_SET: bool = false;
+
         unsafe {
+            if !THEME_APPLIED {
+                self.apply_theme(ctx);
+                THEME_APPLIED = true;
+            }
+
             if !FONT_SET {
                 let mut style = (*ctx.style()).clone();
 
@@ -151,6 +203,13 @@ impl eframe::App for NotesApp {
                     if ui.button("Delete").clicked() {
                         self.delete_selected();
                     }
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let theme_button_text = if self.settings.dark_mode { "☀ Light" } else { "🌙 Dark" };
+                        if ui.button(theme_button_text).clicked() {
+                            self.toggle_theme(ctx);
+                        }
+                    });
                 });
             });
 
@@ -425,6 +484,21 @@ fn load_notes<P: AsRef<Path>>(path: P) -> Result<Vec<Note>, Box<dyn std::error::
 
 fn save_notes<P: AsRef<Path>>(path: P, notes: &Vec<Note>) -> Result<(), Box<dyn std::error::Error>> {
     let json = serde_json::to_string_pretty(notes)?;
+    fs::write(path, json)?;
+    Ok(())
+}
+
+fn load_settings<P: AsRef<Path>>(path: P) -> Result<AppSettings, Box<dyn std::error::Error>> {
+    if !path.as_ref().exists() {
+        return Ok(AppSettings::default());
+    }
+    let data = fs::read_to_string(path)?;
+    let settings: AppSettings = serde_json::from_str(&data)?;
+    Ok(settings)
+}
+
+fn save_settings<P: AsRef<Path>>(path: P, settings: &AppSettings) -> Result<(), Box<dyn std::error::Error>> {
+    let json = serde_json::to_string_pretty(settings)?;
     fs::write(path, json)?;
     Ok(())
 }
