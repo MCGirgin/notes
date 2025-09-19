@@ -1,6 +1,17 @@
 # Changelog
 
+## 0.4.0
+
+Released on 2025-09-20
+
+### What's new
+
+- New drag and drop handle for better experience ([ad3b354](https://github.com/MCGirgin/notes/commit/ad3b35449639714fe8c8275f07e25b44a64167a8))
+- New setting to display drag and drop handle or not ([ad3b354](https://github.com/MCGirgin/notes/commit/ad3b35449639714fe8c8275f07e25b44a64167a8))
+
 ## 0.3.1
+
+Released on 2025-09-19
 
 ### Bug fixes
 
