@@ -161,31 +161,34 @@ impl NotesApp {
 
     fn apply_font_settings(&self, ctx: &egui::Context) {
         let mut style = (*ctx.style()).clone();
-        
+
         style.text_styles.get_mut(&egui::TextStyle::Body).unwrap().size = self.settings.font_size;
         style.text_styles.get_mut(&egui::TextStyle::Heading).unwrap().size = self.settings.font_size + 7.0;
         style.text_styles.get_mut(&egui::TextStyle::Button).unwrap().size = self.settings.font_size - 2.0;
-        
+
         ctx.set_style(style);
     }
 
     fn move_note(&mut self, from: usize, to: usize) {
-        if from != to && from < self.notes.len() && to < self.notes.len() {
-            let note = self.notes.remove(from);
-            self.notes.insert(to, note);
-            
-            if let Some(selected_idx) = self.selected {
-                if selected_idx == from {
-                    self.selected = Some(to);
-                } else if selected_idx > from && selected_idx <= to {
-                    self.selected = Some(selected_idx - 1);
-                } else if selected_idx < from && selected_idx >= to {
-                    self.selected = Some(selected_idx + 1);
-                }
-            }
-            
-            self.dirty = true;
+        let len = self.notes.len();
+        if from >= len || to > len || from == to {
+            return;
         }
+
+        let selected_id = self.selected.and_then(|s| self.notes.get(s).map(|n| n.id));
+
+        let note = self.notes.remove(from);
+
+        let insert_at = if to > from { to - 1 } else { to };
+        let insert_at = insert_at.min(self.notes.len());
+
+        self.notes.insert(insert_at, note);
+
+        self.selected = selected_id.and_then(|id| {
+            self.notes.iter().position(|n| n.id == id)
+        });
+
+        self.dirty = true;
     }
 
     fn show_settings_page(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
@@ -197,7 +200,7 @@ impl NotesApp {
             ui.group(|ui| {
                 ui.label(egui::RichText::new("Appearance").size(18.0));
                 ui.add_space(5.0);
-                
+
                 ui.horizontal(|ui| {
                     ui.label("Theme:");
                     if ui.selectable_label(self.settings.dark_mode, "Dark").clicked() {
@@ -246,7 +249,7 @@ impl NotesApp {
             ui.group(|ui| {
                 ui.label(egui::RichText::new("Storage Information").size(18.0));
                 ui.add_space(5.0);
-                
+
                 ui.label("Notes stored at:");
                 ui.label(format!("{}", self.data_path));
                 ui.label("Settings stored at:");
@@ -371,15 +374,17 @@ impl eframe::App for NotesApp {
 
                             let available_height = ui.available_height() - bottom_content_height;
 
+                            let mut item_rects: Vec<(usize, usize, egui::Rect)> = Vec::new();
+
                             egui::ScrollArea::vertical()
-                                        .max_height(available_height)
-                                        .show(ui, |ui| {
-                                    for (_list_idx, (original_idx, title, _id)) in filtered_notes.iter().enumerate() {
+                                .max_height(available_height)
+                                .show(ui, |ui| {
+                                    for (display_idx, (original_idx, title, _id)) in filtered_notes.iter().enumerate() {
                                         let selected = Some(*original_idx) == self.selected;
-                                        
+
                                         if enable_dnd {
                                             let response = ui.allocate_response(
-                                                egui::vec2(ui.available_width(), 20.0),
+                                                egui::vec2(ui.available_width(), 24.0),
                                                 egui::Sense::click_and_drag()
                                             );
 
@@ -394,93 +399,93 @@ impl eframe::App for NotesApp {
                                                 to_select = Some(*original_idx);
                                             }
 
+                                            item_rects.push((display_idx, *original_idx, response.rect));
+
                                             if response.drag_started() {
                                                 self.dragging = Some(*original_idx);
-                                                self.drag_start_pos = Some(response.interact_pointer_pos().unwrap_or_default());
+                                                self.drag_start_pos = ctx.pointer_latest_pos();
                                             }
 
                                             if let Some(dragging_idx) = self.dragging {
                                                 if dragging_idx == *original_idx {
-                                                    let painter = ui.painter();
-                                                    let drag_rect = response.rect;
-                                                    
-                                                    if let Some(pointer_pos) = ctx.pointer_latest_pos() {
-                                                        if let Some(start_pos) = self.drag_start_pos {
-                                                            let offset = pointer_pos - start_pos;
-                                                            let dragged_rect = drag_rect.translate(egui::vec2(0.0, offset.y));
-                                                            
-                                                            painter.rect_filled(
-                                                                dragged_rect,
-                                                                4.0,
-                                                                egui::Color32::from_rgba_premultiplied(30, 30, 30, 100)
-                                                            );
-                                                            painter.text(
-                                                                dragged_rect.center(),
-                                                                egui::Align2::CENTER_CENTER,
-                                                                title,
-                                                                egui::FontId::default(),
-                                                                egui::Color32::WHITE
-                                                            );
-                                                        }
-                                                    }
+                                                    if let (Some(pointer_pos), Some(start_pos)) = (ctx.pointer_latest_pos(), self.drag_start_pos) {
+                                                        let offset = pointer_pos - start_pos;
+                                                        let dragged_rect = response.rect.translate(egui::vec2(0.0, offset.y));
 
-                                                    if let Some(pointer_pos) = ctx.pointer_latest_pos() {
-                                                        for (_target_list_idx, (target_original_idx, _target_title, _target_id)) in filtered_notes.iter().enumerate() {
-                                                            if *target_original_idx != dragging_idx {
-                                                                let target_y = ui.min_rect().top() + (_target_list_idx as f32 * 25.0) + 40.0;
-                                                                let target_rect = egui::Rect::from_min_size(
-                                                                    egui::pos2(ui.min_rect().left(), target_y),
-                                                                    egui::vec2(ui.available_width(), 20.0)
-                                                                );
-                                                                
-                                                                if target_rect.contains(pointer_pos) {
-                                                                    let painter = ui.painter();
-                                                                    painter.hline(
-                                                                        target_rect.x_range(),
-                                                                        if pointer_pos.y < target_rect.center().y {
-                                                                            target_rect.top()
-                                                                        } else {
-                                                                            target_rect.bottom()
-                                                                        },
-                                                                        egui::Stroke::new(2.0, egui::Color32::GRAY)
-                                                                    );
-                                                                }
-                                                            }
-                                                        }
+                                                        let painter = ui.painter();
+                                                        painter.rect_filled(
+                                                            dragged_rect,
+                                                            4.0,
+                                                            egui::Color32::from_rgba_premultiplied(30, 30, 30, 160)
+                                                        );
+                                                        painter.text(
+                                                            dragged_rect.center(),
+                                                            egui::Align2::CENTER_CENTER,
+                                                            title,
+                                                            egui::FontId::proportional(self.settings.font_size),
+                                                            egui::Color32::WHITE
+                                                        );
                                                     }
                                                 }
                                             }
 
-                                            if response.drag_stopped() && self.dragging.is_some() {
+                                            if self.dragging.is_some() {
                                                 if let Some(pointer_pos) = ctx.pointer_latest_pos() {
-                                                    for (_target_list_idx, (target_original_idx, _target_title, _target_id)) in filtered_notes.iter().enumerate() {
-                                                        if *target_original_idx != self.dragging.unwrap() {
-                                                            let target_y = ui.min_rect().top() + (_target_list_idx as f32 * 25.0) + 40.0;
-                                                            let target_rect = egui::Rect::from_min_size(
-                                                                egui::pos2(ui.min_rect().left(), target_y),
-                                                                egui::vec2(ui.available_width(), 20.0)
-                                                            );
-                                                            
-                                                            if target_rect.contains(pointer_pos) {
-                                                                move_from_to = Some((self.dragging.unwrap(), *target_original_idx));
-                                                                break;
+                                                    let painter = ui.painter();
+                                                    for (_didx, target_orig_idx, rect) in item_rects.iter() {
+                                                        if *target_orig_idx != self.dragging.unwrap() {
+                                                            if rect.contains(pointer_pos) {
+                                                                let y = if pointer_pos.y < rect.center().y {
+                                                                    rect.top()
+                                                                } else {
+                                                                    rect.bottom()
+                                                                };
+                                                                painter.hline(
+                                                                    rect.x_range(),
+                                                                    y,
+                                                                    egui::Stroke::new(2.0, egui::Color32::GRAY)
+                                                                );
                                                             }
                                                         }
                                                     }
                                                 }
-                                                self.dragging = None;
-                                                self.drag_start_pos = None;
-                                            }
-                                        } else {
-                                            if ui
-                                                .selectable_label(selected, format!("{}", title))
-                                                .clicked()
-                                            {
-                                                to_select = Some(*original_idx);
                                             }
                                         }
                                     }
                                 });
+
+                            if self.dragging.is_some() && ctx.input(|i| i.pointer.any_released()) {
+                                if let Some(pointer_pos) = ctx.pointer_latest_pos() {
+                                    let mut found: Option<usize> = None;
+                                    for (display_idx, _, rect) in item_rects.iter() {
+                                        if rect.contains(pointer_pos) {
+                                            let desired = if pointer_pos.y < rect.center().y { *display_idx } else { *display_idx + 1 };
+                                            found = Some(desired);
+                                            break;
+                                        }
+                                    }
+
+                                    let desired = if let Some(d) = found {
+                                        d
+                                    } else if !item_rects.is_empty() {
+                                        let first_rect = &item_rects[0].2;
+                                        let last_rect = &item_rects[item_rects.len() - 1].2;
+                                        if pointer_pos.y < first_rect.center().y {
+                                            0
+                                        } else if pointer_pos.y > last_rect.center().y {
+                                            item_rects.len()
+                                        } else {
+                                            item_rects.len()
+                                        }
+                                    } else {
+                                        0
+                                    };
+                                    move_from_to = Some((self.dragging.unwrap(), desired));
+                                }
+
+                                self.dragging = None;
+                                self.drag_start_pos = None;
+                            }
 
                             if let Some((from, to)) = move_from_to {
                                 self.move_note(from, to);
@@ -561,15 +566,15 @@ impl eframe::App for NotesApp {
 
                                 let mut save_clicked = false;
                                 let last_modified = note.modified;
-                                
+
                                 let dt: DateTime<Local> = Local.timestamp_opt(last_modified as i64, 0).unwrap();
-                                
+
                                 ui.horizontal(|ui| {
                                     ui.label(
                                         egui::RichText::new(format!("Last modified: {}", dt.format("%d-%m-%Y %H:%M")))
                                             .size(10.0)
                                     );
-                                    
+
                                     if self.settings.show_word_count {
                                         let word_count = Self::get_word_count(&note.body);
                                         ui.label(
@@ -578,7 +583,7 @@ impl eframe::App for NotesApp {
                                         );
                                     }
                                 });
-                                
+
                                 ui.horizontal(|ui| {
                                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                         if note.editing {
