@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+### Bug fixes
+
+- Fixed drag and drop bug ([b2412be](https://github.com/MCGirgin/notes/commit/b2412be820d6e7c2a8f785779ab104a56940a04b))
+
 ## 0.3.0
 
 Released on 2025-09-19
