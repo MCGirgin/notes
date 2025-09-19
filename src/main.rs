@@ -36,6 +36,7 @@ struct AppSettings {
     font_size: f32,
     auto_save: bool,
     show_word_count: bool,
+    drag_and_drop: bool,
 }
 
 impl Default for AppSettings {
@@ -45,6 +46,7 @@ impl Default for AppSettings {
             font_size: 17.0,
             auto_save: true,
             show_word_count: false,
+            drag_and_drop: false,
         }
     }
 }
@@ -238,6 +240,12 @@ impl NotesApp {
                     self.settings_changed = true;
                 }
 
+                let mut drag_and_drop = self.settings.drag_and_drop;
+                if ui.checkbox(&mut drag_and_drop, "Enable Drag and Drop").changed() {
+                    self.settings.drag_and_drop = drag_and_drop;
+                    self.settings_changed = true;
+                }
+
                 let mut show_word_count = self.settings.show_word_count;
                 if ui.checkbox(&mut show_word_count, "Show word count").changed() {
                     self.settings.show_word_count = show_word_count;
@@ -382,52 +390,79 @@ impl eframe::App for NotesApp {
                                     for (display_idx, (original_idx, title, _id)) in filtered_notes.iter().enumerate() {
                                         let selected = Some(*original_idx) == self.selected;
 
-                                        if enable_dnd {
-                                            let response = ui.allocate_response(
-                                                egui::vec2(ui.available_width(), 24.0),
-                                                egui::Sense::click_and_drag()
-                                            );
+                                        if enable_dnd && self.settings.drag_and_drop {
+                                            ui.horizontal(|ui| {
+                                                let handle_size = egui::vec2(12.0, 16.0);
+                                                let handle_response = ui.allocate_response(
+                                                    handle_size,
+                                                    egui::Sense::click_and_drag()
+                                                );
 
-                                            let label_response = ui.scope_builder(
-                                                egui::UiBuilder::new().max_rect(response.rect),
-                                                |ui| {
-                                                    ui.selectable_label(selected, format!("{}", title))
+                                                let painter = ui.painter();
+                                                let handle_rect = handle_response.rect;
+                                                let handle_color = if handle_response.hovered() {
+                                                    ui.visuals().text_color()
+                                                } else {
+                                                    ui.visuals().weak_text_color()
+                                                };
+
+                                                let line_spacing = 4.0;
+                                                let line_width = 8.0;
+                                                let center_x = handle_rect.center().x;
+                                                let center_y = handle_rect.center().y;
+                                                
+                                                for i in 0..3 {
+                                                    let y = center_y + (i as f32 - 1.0) * line_spacing;
+                                                    painter.line_segment(
+                                                        [
+                                                            egui::pos2(center_x - line_width / 2.0, y),
+                                                            egui::pos2(center_x + line_width / 2.0, y)
+                                                        ],
+                                                        egui::Stroke::new(1.5, handle_color)
+                                                    );
                                                 }
-                                            ).inner;
 
-                                            if label_response.clicked() {
-                                                to_select = Some(*original_idx);
-                                            }
+                                                let remaining_width = ui.available_width();
+                                                let mut current_selection = if selected { Some(*original_idx) } else { None };
+                                                let response = ui.selectable_value(&mut current_selection, Some(*original_idx), format!("{}", title));
+                                                if response.clicked() {
+                                                    to_select = Some(*original_idx);
+                                                }
 
-                                            item_rects.push((display_idx, *original_idx, response.rect));
+                                                let full_rect = egui::Rect::from_min_size(
+                                                    handle_rect.min,
+                                                    egui::vec2(handle_rect.width() + remaining_width, 20.0)
+                                                );
+                                                item_rects.push((display_idx, *original_idx, full_rect));
 
-                                            if response.drag_started() {
-                                                self.dragging = Some(*original_idx);
-                                                self.drag_start_pos = ctx.pointer_latest_pos();
-                                            }
+                                                if handle_response.drag_started() {
+                                                    self.dragging = Some(*original_idx);
+                                                    self.drag_start_pos = ctx.pointer_latest_pos();
+                                                }
 
-                                            if let Some(dragging_idx) = self.dragging {
-                                                if dragging_idx == *original_idx {
-                                                    if let (Some(pointer_pos), Some(start_pos)) = (ctx.pointer_latest_pos(), self.drag_start_pos) {
-                                                        let offset = pointer_pos - start_pos;
-                                                        let dragged_rect = response.rect.translate(egui::vec2(0.0, offset.y));
+                                                if let Some(dragging_idx) = self.dragging {
+                                                    if dragging_idx == *original_idx {
+                                                        if let (Some(pointer_pos), Some(start_pos)) = (ctx.pointer_latest_pos(), self.drag_start_pos) {
+                                                            let offset = pointer_pos - start_pos;
+                                                            let dragged_rect = full_rect.translate(egui::vec2(0.0, offset.y));
 
-                                                        let painter = ui.painter();
-                                                        painter.rect_filled(
-                                                            dragged_rect,
-                                                            4.0,
-                                                            egui::Color32::from_rgba_premultiplied(30, 30, 30, 160)
-                                                        );
-                                                        painter.text(
-                                                            dragged_rect.center(),
-                                                            egui::Align2::CENTER_CENTER,
-                                                            title,
-                                                            egui::FontId::proportional(self.settings.font_size),
-                                                            egui::Color32::WHITE
-                                                        );
+                                                            let painter = ui.painter();
+                                                            painter.rect_filled(
+                                                                dragged_rect,
+                                                                4.0,
+                                                                egui::Color32::from_rgba_premultiplied(30, 30, 30, 160)
+                                                            );
+                                                            painter.text(
+                                                                dragged_rect.left_center() + egui::vec2(20.0, 0.0),
+                                                                egui::Align2::LEFT_CENTER,
+                                                                title,
+                                                                egui::FontId::proportional(self.settings.font_size),
+                                                                egui::Color32::WHITE
+                                                            );
+                                                        }
                                                     }
                                                 }
-                                            }
+                                            });
 
                                             if self.dragging.is_some() {
                                                 if let Some(pointer_pos) = ctx.pointer_latest_pos() {
@@ -449,6 +484,11 @@ impl eframe::App for NotesApp {
                                                         }
                                                     }
                                                 }
+                                            }
+                                        } else {
+                                            let mut current_selection = if selected { Some(*original_idx) } else { None };
+                                            if ui.selectable_value(&mut current_selection, Some(*original_idx), format!("{}", title)).clicked() {
+                                                to_select = Some(*original_idx);
                                             }
                                         }
                                     }
@@ -497,8 +537,8 @@ impl eframe::App for NotesApp {
 
                             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                                 ui.label(format!("{} notes", self.notes.len()));
-                                if enable_dnd {
-                                    ui.label(egui::RichText::new("Drag to reorder").size(10.0));
+                                if enable_dnd && self.settings.drag_and_drop {
+                                    ui.label(egui::RichText::new("Drag handles to reorder").size(10.0));
                                 }
                                 ui.separator();
                             });
