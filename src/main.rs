@@ -392,7 +392,12 @@ impl eframe::App for NotesApp {
 
                                         if enable_dnd && self.settings.drag_and_drop {
                                             ui.horizontal(|ui| {
-                                                let handle_size = egui::vec2(12.0, 16.0);
+                                                let base_font_size = 14.0;
+                                                let scale_factor = self.settings.font_size / base_font_size;
+                                                let handle_width = (10.0 * scale_factor).max(8.0);
+                                                let handle_height = (16.0 * scale_factor).max(12.0);
+                                                let handle_size = egui::vec2(handle_width, handle_height);
+                                                
                                                 let handle_response = ui.allocate_response(
                                                     handle_size,
                                                     egui::Sense::click_and_drag()
@@ -406,8 +411,10 @@ impl eframe::App for NotesApp {
                                                     ui.visuals().weak_text_color()
                                                 };
 
-                                                let line_spacing = 4.0;
-                                                let line_width = 8.0;
+                                                let line_spacing = (4.0 * scale_factor).max(2.0);
+                                                let line_width = (8.0 * scale_factor).max(6.0);
+                                                let line_thickness = (1.5 * scale_factor).max(1.0);
+                                                
                                                 let center_x = handle_rect.center().x;
                                                 let center_y = handle_rect.center().y;
                                                 
@@ -418,7 +425,7 @@ impl eframe::App for NotesApp {
                                                             egui::pos2(center_x - line_width / 2.0, y),
                                                             egui::pos2(center_x + line_width / 2.0, y)
                                                         ],
-                                                        egui::Stroke::new(1.5, handle_color)
+                                                        egui::Stroke::new(line_thickness, handle_color)
                                                     );
                                                 }
 
@@ -429,9 +436,10 @@ impl eframe::App for NotesApp {
                                                     to_select = Some(*original_idx);
                                                 }
 
+                                                let item_height = (20.0 * scale_factor).max(16.0);
                                                 let full_rect = egui::Rect::from_min_size(
                                                     handle_rect.min,
-                                                    egui::vec2(handle_rect.width() + remaining_width, 20.0)
+                                                    egui::vec2(handle_rect.width() + remaining_width, item_height)
                                                 );
                                                 item_rects.push((display_idx, *original_idx, full_rect));
 
@@ -453,7 +461,7 @@ impl eframe::App for NotesApp {
                                                                 egui::Color32::from_rgba_premultiplied(30, 30, 30, 160)
                                                             );
                                                             painter.text(
-                                                                dragged_rect.left_center() + egui::vec2(20.0, 0.0),
+                                                                dragged_rect.left_center() + egui::vec2(20.0 * scale_factor, 0.0),
                                                                 egui::Align2::LEFT_CENTER,
                                                                 title,
                                                                 egui::FontId::proportional(self.settings.font_size),
