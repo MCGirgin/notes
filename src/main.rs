@@ -259,11 +259,14 @@ impl NotesApp {
             ui.group(|ui| {
                 ui.label(egui::RichText::new("Storage Information").size(18.0));
                 ui.add_space(5.0);
-
-                ui.label("Notes stored at:");
-                ui.label(format!("{}", self.data_path));
-                ui.label("Settings stored at:");
-                ui.label(format!("{}", self.settings_path));
+                ui.group(|ui| {
+                    ui.label("Notes stored at:");
+                    ui.label(format!("{}", self.data_path));
+                });
+                ui.group(|ui| {
+                    ui.label("Settings stored at:");
+                    ui.label(format!("{}", self.settings_path));
+                });
                 ui.label(format!("Total notes: {}", self.notes.len()));
             });
 
