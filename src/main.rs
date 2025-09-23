@@ -155,9 +155,11 @@ impl NotesApp {
 
     fn apply_theme(&self, ctx: &egui::Context) {
         if self.settings.dark_mode {
-            ctx.set_visuals(egui::Visuals::dark());
+            let visuals_dark = egui::Visuals::dark();
+            ctx.set_visuals(visuals_dark);
         } else {
-            ctx.set_visuals(egui::Visuals::light());
+            let visuals_light = egui::Visuals::light();
+            ctx.set_visuals(visuals_light);
         }
     }
 
@@ -315,17 +317,6 @@ impl eframe::App for NotesApp {
                     if ui.selectable_label(self.current_view == AppView::Settings, "Settings").clicked() {
                         self.current_view = AppView::Settings;
                     }
-
-                    ui.separator();
-
-                    if self.current_view == AppView::Notes {
-                        if ui.button("New").clicked() {
-                            self.add_note();
-                        }
-                        if ui.button("Delete").clicked() {
-                            self.delete_selected();
-                        }
-                    }
                 });
             });
 
@@ -351,12 +342,26 @@ impl eframe::App for NotesApp {
                     .min_width(150.0).show(ctx, |ui| {
                         ui.vertical(|ui| {
                             ui.horizontal(|ui| {
+                                if self.current_view == AppView::Notes {
+                                    if ui.button("New").clicked() {
+                                        self.add_note();
+                                    }
+                                    if ui.button("Delete").clicked() {
+                                        self.delete_selected();
+                                    }
+                                }
+                            });
+                            ui.add_space(2.0);
+                            ui.separator();
+                            ui.add_space(5.0);
+                            ui.horizontal(|ui| {
                                 ui.label("Search:");
                                 ui.text_edit_singleline(&mut self.search);
                             });
                             ui.add_space(2.0);
                             ui.separator();
-                            ui.add_space(5.0);
+                            ui.add_space(2.0);
+                            
 
                             let filtered_notes: Vec<(usize, String, u128)> = self
                                 .notes
