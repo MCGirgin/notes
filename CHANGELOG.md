@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.1
+
+Released on 2025-09-23
+
+### Bug fixes
+
+- Drag and drop handles are now can be resized with font size ([06e1d9d](https://github.com/MCGirgin/notes/commit/06e1d9d7695641474f11488cad42c02b9d385120))
+
+### Enhancements
+
+- Better reading for settings page ([efc6114](https://github.com/MCGirgin/notes/commit/efc61142cd6abf21791690cb8dc1a776fa3b44b8))
+- Relocated `new` and `delete` buttons ([41a0147](https://github.com/MCGirgin/notes/commit/41a0147db36acf9e4ced83e34d48c6c090f7f0a6))
+
 ## 0.4.0
 
 Released on 2025-09-20
