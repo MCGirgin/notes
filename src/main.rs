@@ -317,9 +317,11 @@ impl eframe::App for NotesApp {
                     if ui.selectable_label(self.current_view == AppView::Notes, "Notes").clicked() {
                         self.current_view = AppView::Notes;
                     }
-                    if ui.selectable_label(self.current_view == AppView::Settings, "Settings").clicked() {
-                        self.current_view = AppView::Settings;
-                    }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::RIGHT), |ui| {
+                        if ui.selectable_label(self.current_view == AppView::Settings, "⚙").clicked() {
+                            self.current_view = AppView::Settings;
+                        }
+                    });
                 });
             });
 
