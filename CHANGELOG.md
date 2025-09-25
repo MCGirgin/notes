@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.2
+
+Released on 2025-09-25
+
+### What's new
+
+- Interactable settings label is now aligned to right and replaced text with an icon ([709f2bc](https://github.com/MCGirgin/notes/commit/709f2bc54f0b07420be9c54848d373c8d18444dc))
+
+### Enhancements
+
+- Updated cargo.toml for smaller binaries and lightweight build ([7332535](https://github.com/MCGirgin/notes/commit/73325356891504f279f3ceba25f56533165481ea))
+
 ## 0.4.1
 
 Released on 2025-09-23
